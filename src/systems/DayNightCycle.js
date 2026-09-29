@@ -129,9 +129,9 @@ export class DayNightCycle {
     this.sunLight = new THREE.DirectionalLight(0xfff0d8, 2);
     this.sunLight.castShadow = true;
     const cam = this.sunLight.shadow.camera;
-    cam.left = -55;
-    cam.right = 55;
-    cam.top = 55;
+    cam.left = -40;
+    cam.right = 40;
+    cam.top = 40;
     cam.bottom = -55;
     cam.near = 1;
     cam.far = 300;

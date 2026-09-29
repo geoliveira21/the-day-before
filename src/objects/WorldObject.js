@@ -192,6 +192,7 @@ export class WorldObject {
       this.mesh.rotation.y += dt * 1.2;
       this.mesh.position.y = 0.25 + Math.sin(this.time * 2) * 0.06;
       if (this.ring) {
+        this.ring.visible = visible;
         this.ring.material.opacity = (this.focused ? 0.9 : 0.4) + Math.sin(this.time * 3) * 0.1;
         this.ring.scale.setScalar(this.focused ? 1.25 : 1);
       }

@@ -30,6 +30,7 @@ const STARTING_ITEMS = [
   ['bandage', 1],
 ];
 const KILL_DROPS = ['cloth', 'canned_food', 'bandage', 'water_bottle', 'battery'];
+const OBJECT_DRAW_DISTANCE = 75;
 const LIGHTNING_COLOR = new THREE.Color(0.8, 0.85, 1);
 
 // Vignette + film grain + subtle desaturation + damage tint.
@@ -110,7 +111,7 @@ export class GameScene {
     const preset = QUALITY_PRESETS[this.settings.quality] || QUALITY_PRESETS.medium;
     this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.05;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -725,6 +726,8 @@ export class GameScene {
 
     for (const o of this.worldObjects) {
       const d = Math.hypot(o.position.x - p.x, o.position.z - p.z);
+      // Distance culling keeps draw calls low; fog hides everything this far anyway.
+      o.root.visible = d < OBJECT_DRAW_DISTANCE;
       if (d < 30 || o.focused) o.update(dt, d);
     }
 
