@@ -572,8 +572,9 @@ export class GameScene {
     }
     if (obj.removed) {
       this.world.root.remove(obj.root);
-      obj.dispose();
-      this.worldObjects.splice(this.worldObjects.indexOf(obj), 1);
+      if (obj.kind === 'pickup') obj.dispose();
+      const index = this.worldObjects.indexOf(obj);
+      if (index !== -1) this.worldObjects.splice(index, 1);
       if (this.focused === obj) this.focused = null;
     }
   }

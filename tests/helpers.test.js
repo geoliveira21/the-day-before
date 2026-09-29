@@ -55,6 +55,8 @@ describe('Helpers', () => {
     expect(formatTime(0)).toBe('00:00');
     expect(formatTime(13.5)).toBe('13:30');
     expect(formatTime(23.99)).toBe('23:59');
+    expect(formatTime(13.9999999)).toBe('13:59');
+    expect(formatTime(24.5)).toBe('00:30');
   });
 
   it('persists and validates settings', () => {

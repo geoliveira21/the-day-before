@@ -4,6 +4,7 @@ import { MainMenu } from './scenes/MainMenu.js';
 import { MenuUI } from './ui/MenuUI.js';
 import { AudioManager } from './audio/AudioManager.js';
 import { loadSettings, saveSettings } from './utils/Helpers.js';
+import { GAME_STATES } from './utils/Constants.js';
 
 async function bootstrap() {
   const container = document.getElementById('game');
@@ -44,7 +45,7 @@ async function bootstrap() {
   // Pause audio when the tab is hidden.
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) audio.suspend();
-    else if (game.state !== 'menu') audio.resume();
+    else if (game.state !== GAME_STATES.MENU) audio.resume();
   });
 
   // Expose for debugging in the browser console.

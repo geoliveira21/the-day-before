@@ -91,19 +91,13 @@ describe('CraftingSystem', () => {
   });
 
   it('refuses crafts that would exceed carrying capacity', () => {
-    // flashlight output is heavier than nothing: fill inventory to the brim first.
-    const inv = new InventorySystem({ maxWeight: 2.4 });
-    const crafting = new CraftingSystem(inv);
-    inv.add('electronics', 1);
-    inv.add('battery', 1);
-    inv.add('scrap_metal', 1);
-    const recipe = crafting.getRecipe('flashlight');
-    const delta = crafting.weightDelta(recipe);
-    if (delta > inv.getFreeWeight()) {
-      expect(crafting.check('flashlight').reason).toBe('Too heavy to carry');
-      expect(inv.count('battery')).toBe(1);
-    } else {
-      expect(crafting.craft('flashlight').ok).toBe(true);
-    }
+    const inv = new InventorySystem({ maxWeight: 1 });
+    const heavyRecipe = { id: 'heavy', output: { id: 'scrap_metal', qty: 2 }, requires: { cloth: 1 } };
+    const crafting = new CraftingSystem(inv, [heavyRecipe]);
+    inv.add('cloth', 1);
+    const result = crafting.craft('heavy');
+    expect(result).toEqual({ ok: false, reason: 'Too heavy to carry' });
+    expect(inv.count('cloth')).toBe(1);
+    expect(inv.count('scrap_metal')).toBe(0);
   });
 });

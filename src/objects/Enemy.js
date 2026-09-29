@@ -60,6 +60,7 @@ export class Enemy {
     this.root = this.rig.root;
     // Glowing eyes make enemies readable at night.
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff3b1f });
+    this.eyeMaterial = eyeMat;
     for (const x of [-0.07, 0.07]) {
       const eye = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.02), eyeMat);
       eye.position.set(x, 0.16, 0.155);
@@ -322,5 +323,6 @@ export class Enemy {
       o.geometry?.dispose();
     });
     for (const m of Object.values(this.materials)) m.dispose();
+    this.eyeMaterial.dispose();
   }
 }

@@ -69,8 +69,9 @@ export function rollLoot(table, rng) {
 
 /** Formats an in-game hour (0-24, fractional) as HH:MM. */
 export function formatTime(hours) {
-  const h = ((Math.floor(hours) % 24) + 24) % 24;
-  const m = Math.floor((hours - Math.floor(hours)) * 60);
+  const totalMinutes = ((Math.floor(hours * 60) % 1440) + 1440) % 1440;
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 

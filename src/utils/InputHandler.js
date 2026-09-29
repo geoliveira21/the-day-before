@@ -155,10 +155,13 @@ export class InputHandler {
     this.gamepadLook.y = axis(3);
     for (const [action, buttons] of Object.entries(GAMEPAD_BINDINGS)) {
       const active = buttons.some((b) => pad.buttons[b]?.pressed);
+      const wasActive = this.keySources.get(action)?.has('gamepad') ?? false;
+      if (active && !wasActive) {
+        if (action === 'hotbarNext') this.hotbarDelta += 1;
+        else if (action === 'hotbarPrev') this.hotbarDelta -= 1;
+      }
       this._setSource(action, 'gamepad', active);
     }
-    if (this.wasPressed('hotbarNext')) this.hotbarDelta += 1;
-    if (this.wasPressed('hotbarPrev')) this.hotbarDelta -= 1;
   }
 
   // ---------------------------------------------------------------- touch
