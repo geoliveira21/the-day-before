@@ -265,6 +265,7 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
   }
 
   // Separate stream keeps decorative changes from relocating supplies or enemies.
+  for (const p of layout.enemySpawns) occupy(p.x, p.z, 0.8, 0.8);
   const dressing = createRNG(seed ^ 0x39a72);
   for (const street of layout.streets) {
     const segments = Math.max(1, Math.round(street.length / pitch));
@@ -826,7 +827,10 @@ export class MapGenerator {
         transform.scale.setScalar(p.scale);
         transform.updateMatrix();
         mesh.setMatrixAt(i, transform.matrix);
-        if (type === 'tree') physics.addBox({ minX: p.x - 0.25, maxX: p.x + 0.25, minZ: p.z - 0.25, maxZ: p.z + 0.25, maxY: 3 }, { type: 'tree' });
+        if (type === 'tree') {
+          const radius = 0.26 * p.scale;
+          physics.addBox({ minX: p.x - radius, maxX: p.x + radius, minZ: p.z - radius, maxZ: p.z + radius, maxY: 4.5 * p.scale }, { type: 'tree' });
+        }
       });
       mesh.castShadow = type === 'tree';
       mesh.receiveShadow = true;

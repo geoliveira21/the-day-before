@@ -72,6 +72,9 @@ describe('regional world layout', () => {
       expect(p.z).toBeGreaterThanOrEqual(world.bounds.minZ);
       expect(p.z).toBeLessThanOrEqual(world.bounds.maxZ);
     }
+    for (const spawn of world.enemySpawns) {
+      expect(world.scenery.filter((p) => p.type === 'tree').every((p) => Math.hypot(p.x - spawn.x, p.z - spawn.z) > 1)).toBe(true);
+    }
     for (const road of world.streets) {
       expect(road.length).toBeGreaterThan(0);
       const x = (road.x1 + road.x2) / 2, z = (road.z1 + road.z2) / 2;

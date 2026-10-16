@@ -42,7 +42,8 @@ export function createRegionalPlan(config) {
   ];
 
   // The continuous avenue is the spine shared by all three regions.
-  road(avenueX, ruralZ, avenueX, endZ, S, 'midlands', 'main');
+  road(avenueX, ruralZ, avenueX, cityZ, S, 'midlands', 'main');
+  road(avenueX, cityZ, avenueX, endZ, S, 'city', 'main');
   for (let i = 0; i <= config.BLOCKS_X; i++) {
     const x = ox + S / 2 + i * pitch;
     if (x !== avenueX) road(x, cityZ, x, endZ, S, 'city');
