@@ -3,11 +3,12 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { GROUND_LOOT, WORLD } from '../utils/Constants.js';
 import { createRNG } from '../utils/Helpers.js';
 import { WorldObject } from '../objects/WorldObject.js';
+import { closestRoadPoint, createRegionalPlan, roadPoint } from './RegionalMap.js';
 
 // ============================================================== layout (pure)
 
 /**
- * Generates a Manhattan-style grid city as plain data (no Three.js objects).
+ * Generates connected urban, industrial and rural regions as plain data.
  * Deterministic for a given seed.
  */
 export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
@@ -16,8 +17,8 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
   const S = config.STREET_WIDTH;
   const A = config.ALLEY_WIDTH;
   const pitch = B + S;
-  const width = config.BLOCKS_X * pitch + S;
-  const depth = config.BLOCKS_Z * pitch + S;
+  const plan = createRegionalPlan(config);
+  const { width, depth } = plan;
   const originX = -width / 2;
   const originZ = -depth / 2;
 
@@ -26,8 +27,10 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
     width,
     depth,
     bounds: { minX: originX, maxX: originX + width, minZ: originZ, maxZ: originZ + depth },
-    blocks: [],
-    streets: [],
+    blocks: plan.blocks,
+    streets: plan.streets,
+    regions: plan.regions,
+    landmarks: [],
     alleys: [],
     buildings: [],
     props: [],
@@ -40,19 +43,7 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
     playerSpawn: null,
   };
 
-  // Streets: avenues run along Z, streets along X.
-  for (let i = 0; i <= config.BLOCKS_X; i++) {
-    const x = originX + S / 2 + i * pitch;
-    layout.streets.push({ axis: 'z', x, z: 0, length: depth, width: S });
-  }
-  for (let j = 0; j <= config.BLOCKS_Z; j++) {
-    const z = originZ + S / 2 + j * pitch;
-    layout.streets.push({ axis: 'x', x: 0, z, length: width, width: S });
-  }
-
-  const cx = Math.floor(config.BLOCKS_X / 2);
-  const cz = Math.floor(config.BLOCKS_Z / 2);
-  layout.playerSpawn = { x: originX + S / 2 + cx * pitch, z: originZ + S / 2 + cz * pitch };
+  layout.playerSpawn = plan.playerSpawn;
   const spawn = layout.playerSpawn;
 
   // Occupancy rectangles used to avoid overlapping props.
@@ -63,16 +54,12 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
   const nearSpawn = (x, z, r) => Math.hypot(x - spawn.x, z - spawn.z) < r;
 
   // ---------------------------------------------------------------- blocks
-  for (let bx = 0; bx < config.BLOCKS_X; bx++) {
-    for (let bz = 0; bz < config.BLOCKS_Z; bz++) {
-      const minX = originX + S + bx * pitch;
-      const minZ = originZ + S + bz * pitch;
-      const block = { minX, maxX: minX + B, minZ, maxZ: minZ + B };
-      layout.blocks.push(block);
+  for (const block of layout.blocks) {
+      const { minX, minZ } = block;
 
       const lotW = (B - A) / 2;
       const lots = [];
-      const mergeX = rng.chance(0.2);
+      const mergeX = block.industrial || rng.chance(0.2);
       for (let lz = 0; lz < 2; lz++) {
         if (mergeX) {
           lots.push({ minX, maxX: minX + B, minZ: minZ + lz * (lotW + A), maxZ: minZ + lz * (lotW + A) + lotW });
@@ -91,7 +78,8 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
       layout.alleys.push({ minX, maxX: minX + B, minZ: minZ + lotW, maxZ: minZ + lotW + A });
       if (!mergeX) layout.alleys.push({ minX: minX + lotW, maxX: minX + lotW + A, minZ, maxZ: minZ + B });
 
-      for (const lot of lots) {
+      const selectedLots = block.industrial ? [block] : block.residential ? lots.filter((_, i) => i % 2 === 0) : lots;
+      for (const lot of selectedLots) {
         const lw = lot.maxX - lot.minX;
         const ld = lot.maxZ - lot.minZ;
         const lcx = (lot.minX + lot.maxX) / 2;
@@ -112,10 +100,11 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
         const margin = 1;
         const w = lw - margin * 2 - rng.range(0, 3);
         const d = ld - margin * 2 - rng.range(0, 3);
-        const residential = bx === 0 || bz === config.BLOCKS_Z - 1;
+        const residential = block.residential || (block.district === 'city' && minX < originX + pitch);
         const tall = rng.chance(0.12);
         let h = tall ? rng.range(config.MAX_BUILDING_HEIGHT * 0.7, config.MAX_BUILDING_HEIGHT) : rng.range(config.MIN_BUILDING_HEIGHT, config.MAX_BUILDING_HEIGHT * 0.5);
         if (residential) h = Math.min(h, 12);
+        if (block.industrial) h = 8;
         const ruined = rng.chance(config.RUINED_CHANCE);
         if (ruined) h *= rng.range(0.45, 0.8);
         h = Math.round(h / 4) * 4 || 8; // align to floors (texture tiles are 4 units)
@@ -127,29 +116,48 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
           h,
           ruined,
           residential,
+          industrial: block.industrial,
+          district: block.district,
           style: rng.int(0, 2),
           roofDetails: rng.int(0, 3),
           seed: rng.int(1, 1e9),
         };
         layout.buildings.push(building);
         occupy(lcx, lcz, w / 2 + 0.3, d / 2 + 0.3);
-      }
     }
+  }
+
+  const ruralRoad = layout.streets.filter((s) => s.district === 'countryside').at(-1);
+  const cabin = { x: ruralRoad.x2 - 14, z: ruralRoad.z2 + 10, w: 10, d: 8, h: 4, ruined: false,
+    residential: true, industrial: false, district: 'countryside', style: 0, roofDetails: 0, seed: rng.int(1, 1e9), label: 'RANGER STATION' };
+  layout.buildings.push(cabin);
+  occupy(cabin.x, cabin.z, 6, 5);
+  layout.blocks.push({ minX: cabin.x - 6, maxX: cabin.x + 6, minZ: cabin.z - 5, maxZ: cabin.z + 5, district: 'countryside' });
+  layout.landmarks.push({ name: cabin.label, x: cabin.x, z: cabin.z, district: cabin.district });
+  for (const [name, matches] of [
+    ['FACTORY', (b) => b.industrial],
+    ['WAREHOUSES', (b) => b.industrial && !b.label],
+    ['CITY HOSPITAL', (b) => b.district === 'midlands' && !b.industrial],
+    ['MARKET', (b) => b.district === 'midlands' && !b.industrial && !b.label],
+    ['DOWNTOWN', (b) => b.district === 'city'],
+  ]) {
+    const building = layout.buildings.find(matches);
+    if (!building) continue;
+    building.label = name;
+    layout.landmarks.push({ name, x: building.x, z: building.z, district: building.district });
   }
 
   // ---------------------------------------------------------------- streets
   const pointOnStreet = (street) => {
-    const along = rng.range(-street.length / 2 + 4, street.length / 2 - 4);
-    const across = rng.range(-street.width / 2 + 2, street.width / 2 - 2);
-    return street.axis === 'z' ? { x: street.x + across, z: along, dir: 0 } : { x: along, z: street.z + across, dir: Math.PI / 2 };
+    return roadPoint(street, rng.range(0.08, 0.92), rng.range(-street.width / 2 + 2, street.width / 2 - 2));
   };
 
   // Keep the spawn intersection clear.
   occupy(spawn.x, spawn.z, 6, 6);
 
   for (const street of layout.streets) {
-    const segments = street.axis === 'z' ? config.BLOCKS_Z : config.BLOCKS_X;
-    const carCount = segments * config.CARS_PER_STREET_SEGMENT;
+    const segments = Math.max(1, Math.round(street.length / pitch));
+    const carCount = street.district === 'countryside' ? (rng.chance(0.15) ? 1 : 0) : segments * config.CARS_PER_STREET_SEGMENT;
     for (let i = 0; i < carCount; i++) {
       const p = pointOnStreet(street);
       if (overlaps(p.x, p.z, 2.4)) continue;
@@ -158,7 +166,7 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
       occupy(p.x, p.z, 2.3, 2.3);
       layout.containers.push({ type: 'vehicle', x: p.x, z: p.z, rot, attached: true });
     }
-    for (let i = 0; i < segments * 1.5; i++) {
+    for (let i = 0; i < (street.district === 'countryside' ? 0 : segments * 1.5); i++) {
       const p = pointOnStreet(street);
       if (overlaps(p.x, p.z, 1.6)) continue;
       layout.props.push({ type: 'rubble', x: p.x, z: p.z, rot: rng.range(0, Math.PI * 2), scale: rng.range(0.6, 1.3), variant: rng.int(0, 4) });
@@ -170,12 +178,11 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
       layout.props.push({ type: 'debris', x: p.x, z: p.z, rot: rng.range(0, Math.PI * 2) });
     }
     // Street lights along the sidewalk edge.
+    if (street.district === 'countryside') continue;
     for (let i = 0; i < segments; i++) {
-      const along = (street.axis === 'z' ? originZ : originX) + S + i * pitch + B / 2;
       const side = rng.chance(0.5) ? 1 : -1;
-      const x = street.axis === 'z' ? street.x + side * (S / 2 - 0.6) : along;
-      const z = street.axis === 'z' ? along : street.z + side * (S / 2 - 0.6);
-      layout.props.push({ type: 'streetlight', x, z, rot: street.axis === 'z' ? (side > 0 ? -Math.PI / 2 : Math.PI / 2) : side > 0 ? Math.PI : 0, bent: rng.chance(0.3) });
+      const { x, z } = roadPoint(street, (i + 0.5) / segments, side * (street.width / 2 - 0.6));
+      layout.props.push({ type: 'streetlight', x, z, rot: street.angle - side * Math.PI / 2, bent: rng.chance(0.3) });
     }
   }
 
@@ -243,7 +250,7 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
     let x = spawn.x + Math.cos(a) * r;
     let z = spawn.z + Math.sin(a) * r;
     // Snap to the nearest street so fires are visible.
-    const snapped = snapToStreet(layout, x, z, S);
+    const snapped = snapToStreet(layout, x, z);
     x = snapped.x;
     z = snapped.z;
     if (overlaps(x, z, 0.8)) continue;
@@ -260,40 +267,47 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
   // Separate stream keeps decorative changes from relocating supplies or enemies.
   const dressing = createRNG(seed ^ 0x39a72);
   for (const street of layout.streets) {
-    const segments = street.axis === 'z' ? config.BLOCKS_Z : config.BLOCKS_X;
+    const segments = Math.max(1, Math.round(street.length / pitch));
     for (let i = 0; i < segments; i++) {
-      const along = (street.axis === 'z' ? originZ : originX) + S + i * pitch;
       for (const side of [-1, 1]) {
         for (let k = 0; k < 9; k++) {
-          const offset = side * (S / 2 - dressing.range(0.1, 0.9));
-          const a = along + dressing.range(2, B - 2);
-          const x = street.axis === 'z' ? street.x + offset : a;
-          const z = street.axis === 'z' ? a : street.z + offset;
+          const offset = side * (street.width / 2 - dressing.range(0.1, 0.9));
+          const { x, z } = roadPoint(street, (i + dressing.range(0.1, 0.9)) / segments, offset);
           if (!overlaps(x, z, 0.45)) layout.scenery.push({ type: 'weeds', x, z, scale: dressing.range(0.5, 1.4), rot: dressing.range(0, Math.PI * 2) });
         }
-        const offset = side * (S / 2 - 0.8);
-        const a = along + B * 0.65;
-        const x = street.axis === 'z' ? street.x + offset : a;
-        const z = street.axis === 'z' ? a : street.z + offset;
-        if (!overlaps(x, z, 1.5) && !nearSpawn(x, z, 8)) {
+        const offset = side * (street.width / 2 + (street.district === 'countryside' ? 3 : -0.8));
+        const { x, z } = roadPoint(street, (i + 0.65) / segments, offset);
+        if (!overlaps(x, z, 1.5) && !nearSpawn(x, z, 8) &&
+            !layout.streets.some((other) => other !== street && closestRoadPoint(other, x, z).distance < other.width / 2 + 0.5)) {
           layout.scenery.push({ type: 'tree', x, z, scale: dressing.range(0.8, 1.2), rot: dressing.range(0, Math.PI * 2) });
           occupy(x, z, 0.5, 0.5);
         }
       }
     }
   }
+  // Forest trees avoid the road verges and occupied gameplay space.
+  for (let i = 0; i < 650; i++) {
+    const z = dressing.range(originZ + 6, plan.cityZ - 8);
+    const rural = z < plan.ruralZ;
+    if (!rural && !dressing.chance(0.25)) continue;
+    const halfWidth = rural ? width * 0.23 : width * 0.46;
+    const x = dressing.range(-halfWidth, halfWidth);
+    if (overlaps(x, z, 2) || layout.streets.some((s) => closestRoadPoint(s, x, z).distance < s.width / 2 + 3)) continue;
+    layout.scenery.push({ type: 'tree', x, z, scale: dressing.range(0.8, 1.6), rot: dressing.range(0, Math.PI * 2) });
+    occupy(x, z, 1.5, 1.5);
+  }
   return layout;
 }
 
-function snapToStreet(layout, x, z, S) {
+function snapToStreet(layout, x, z) {
   let best = null;
   for (const st of layout.streets) {
-    const d = st.axis === 'z' ? Math.abs(x - st.x) : Math.abs(z - st.z);
-    if (!best || d < best.d) best = { d, st };
+    const point = closestRoadPoint(st, x, z);
+    if (!best || point.distance < best.point.distance) best = { point, st };
   }
-  const off = S / 2 - 1.5;
-  if (best.st.axis === 'z') return { x: best.st.x + Math.sign(x - best.st.x || 1) * off, z };
-  return { x, z: best.st.z + Math.sign(z - best.st.z || 1) * off };
+  const { point, st } = best;
+  const side = Math.sign((x - point.x) * Math.cos(st.angle) - (z - point.z) * Math.sin(st.angle)) || 1;
+  return roadPoint(st, point.t, side * (st.width / 2 - 1.5));
 }
 
 // ============================================================ textures
@@ -543,14 +557,32 @@ export class MapGenerator {
 
   _buildGround(root, layout, rng) {
     const asphalt = createGroundTexture(rng, '#454743');
+    const earth = createGroundTexture(rng, '#555c42', 512, 10);
+    earth.repeat.set((layout.width + 400) / 12, (layout.depth + 400) / 12);
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(layout.width + 400, layout.depth + 400),
-      new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.95, color: 0xb1b0a7 }),
+      new THREE.MeshStandardMaterial({ map: earth, roughness: 1 }),
     );
-    asphalt.repeat.set((layout.width + 400) / 16, (layout.depth + 400) / 16);
     ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.02;
     ground.receiveShadow = true;
     root.add(ground);
+
+    const roadMat = new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.95, color: 0xb1b0a7 });
+    const roadGeometries = layout.streets.flatMap((s) => {
+      const g = new THREE.PlaneGeometry(s.width, s.length + 0.3);
+      const uv = g.attributes.uv;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * s.width / 16, uv.getY(i) * s.length / 16);
+      return [
+        placed(g, s.x, 0, s.z, -Math.PI / 2, s.angle),
+        placed(new THREE.CircleGeometry(s.width / 2, 12), s.x1, 0, s.z1, -Math.PI / 2),
+        placed(new THREE.CircleGeometry(s.width / 2, 12), s.x2, 0, s.z2, -Math.PI / 2),
+      ];
+    });
+    const roads = new THREE.Mesh(mergeGeometries(roadGeometries), roadMat);
+    roads.name = 'regional-roads';
+    roads.receiveShadow = true;
+    root.add(roads);
 
     const concrete = createGroundTexture(rng, '#6b6862', 256, 15);
     const sidewalkMat = new THREE.MeshStandardMaterial({ map: concrete, roughness: 0.9 });
@@ -573,10 +605,12 @@ export class MapGenerator {
     dashGeo.rotateX(-Math.PI / 2);
     const dashes = [];
     for (const st of layout.streets) {
-      for (let s = -st.length / 2 + 2; s < st.length / 2 - 2; s += 7) {
-        if (layout.streets.some((cross) => cross.axis !== st.axis && Math.abs(s - (cross.axis === 'x' ? cross.z : cross.x)) < cross.width / 2)) continue;
+      for (let s = 2; s < st.length - 2; s += 7) {
+        const point = roadPoint(st, s / st.length);
+        if (layout.streets.some((cross) => cross !== st && Math.abs(Math.sin(cross.angle - st.angle)) > 0.1 &&
+            closestRoadPoint(cross, point.x, point.z).distance < cross.width / 2 + 1)) continue;
         if (rng.chance(0.25)) continue; // worn off
-        dashes.push(st.axis === 'z' ? { x: st.x, z: s, r: 0 } : { x: s, z: st.z, r: Math.PI / 2 });
+        dashes.push({ ...point, r: st.angle });
       }
     }
     const inst = new THREE.InstancedMesh(dashGeo, new THREE.MeshStandardMaterial({ color: 0xb59a3a, roughness: 1, transparent: true, opacity: 0.55 }), dashes.length);
@@ -608,7 +642,7 @@ export class MapGenerator {
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x3b3a38, roughness: 1 });
     const ruinMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
     const detailMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.2 });
-    const shopSigns = ['WEST END MARKET', 'PHARMACY', 'LAUNDRY', 'AUTO SERVICE'];
+    const shopSigns = ['WEST END MARKET', 'PHARMACY', 'LAUNDRY', 'AUTO SERVICE', ...layout.landmarks.map((l) => l.name)];
     const signMats = shopSigns.map((label) => {
       const [canvas, g] = makeCanvas(256);
       canvas.height = 48;
@@ -649,10 +683,19 @@ export class MapGenerator {
         for (let x = -b.w / 2 + 0.25; x < b.w / 2; x += 3) {
           details.push(colored(placed(new THREE.BoxGeometry(0.18, 3, 0.25), b.x + x, 1.5, z), 0x736f65));
         }
-        const sign = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(b.w - 1, 6), 0.9), signMats[b.seed % signMats.length]);
+        const signIndex = b.label ? shopSigns.indexOf(b.label) : b.seed % 4;
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(b.w - 1, 6), 0.9), signMats[signIndex]);
         sign.position.set(b.x, 3.8, z + side * 0.15);
         sign.rotation.y = side < 0 ? Math.PI : 0;
         root.add(sign);
+      }
+      if (b.industrial) {
+        // Large loading bays, roof vents and smokestacks distinguish the factory belt.
+        for (let x = -b.w / 2 + 2; x < b.w / 2; x += 3) {
+          details.push(colored(placed(new THREE.BoxGeometry(0.09, b.h, 0.15), b.x + x, b.h / 2, b.z - b.d / 2 - 0.12), 0x71766c));
+        }
+        details.push(colored(placed(new THREE.CylinderGeometry(0.65, 1, 12, 10), b.x + b.w / 3, b.h + 6, b.z), 0x696354));
+        details.push(colored(placed(new THREE.BoxGeometry(b.w * 0.65, 0.65, 2), b.x, b.h + 0.4, b.z), 0x858779));
       }
       if (b.ruined) {
         // Jagged broken floors on top.
@@ -765,7 +808,7 @@ export class MapGenerator {
       const angle = i * Math.PI / 3;
       treeParts.push(colored(placed(new THREE.CylinderGeometry(0.035, 0.08, 2.1, 6), Math.cos(angle) * 0.6, 3.5 + i * 0.17, Math.sin(angle) * 0.6, Math.sin(angle) * 0.7, 0, -Math.cos(angle) * 0.7), 0x514b3e));
     }
-    for (let i = 0; i < 65; i++) {
+    for (let i = 0; i < 32; i++) {
       const leaf = new THREE.SphereGeometry(rng.range(0.2, 0.5), 6, 4);
       leaf.scale(1, 0.55, 1);
       treeParts.push(colored(placed(leaf, rng.range(-1.6, 1.6), rng.range(3.7, 5.7), rng.range(-1.6, 1.6)), rng.pick([0x48503c, 0x5d6348, 0x717052])));

@@ -793,6 +793,7 @@ export class GameScene {
       showFps: this.settings.showFps,
       pointerHint: PLAY_STATES.has(this.state) && !this.input.isPointerLocked && !this.input.canPlayWithoutPointerLock,
       inCombat: this.state === GAME_STATES.COMBAT,
+      showMap: PLAY_STATES.has(this.state) && this.input.isDown('map'),
     });
     if (this.frame % 2 === 0) {
       this.hud.drawMinimap({ player: this.player, cameraYaw: this.cameraYaw, enemies: this.enemies, worldObjects: this.worldObjects });

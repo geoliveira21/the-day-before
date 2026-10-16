@@ -4,6 +4,7 @@ import { DayNightCycle } from '../src/systems/DayNightCycle.js';
 import { findTargetsInArc } from '../src/systems/CombatSystem.js';
 import { generateCityLayout } from '../src/systems/MapGenerator.js';
 import { ITEMS, LOOT_TABLES } from '../src/utils/Constants.js';
+import { closestRoadPoint } from '../src/systems/RegionalMap.js';
 
 describe('PhysicsManager', () => {
   it('pushes circles out of boxes', () => {
@@ -113,10 +114,12 @@ describe('generateCityLayout', () => {
     for (const p of layout.scenery) {
       expect(p.scale).toBeGreaterThan(0);
       expect(Math.hypot(p.x - layout.playerSpawn.x, p.z - layout.playerSpawn.z)).toBeGreaterThan(6);
-      expect(layout.streets.some((s) => {
-        const across = Math.abs(s.axis === 'z' ? p.x - s.x : p.z - s.z);
-        return across >= s.width / 2 - 1 && across <= s.width / 2;
-      })).toBe(true);
+      if (p.type === 'weeds') {
+        expect(layout.streets.some((s) => {
+          const across = closestRoadPoint(s, p.x, p.z).distance;
+          return across >= s.width / 2 - 1 && across <= s.width / 2;
+        })).toBe(true);
+      }
     }
   });
 

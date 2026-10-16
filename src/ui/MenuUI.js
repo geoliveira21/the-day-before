@@ -10,6 +10,7 @@ const CONTROLS = [
   ['1 – 5 / Wheel', 'Select hotbar slot'],
   ['Tab / I', 'Inventory'],
   ['C', 'Crafting'],
+  ['Hold M', 'Field map (does not pause)'],
   ['F', 'Toggle flashlight'],
   ['Esc / P', 'Pause'],
   ['Gamepad', 'LS move · RS look · A jump · X interact · RT attack · LT sprint · Y inventory · B crafting · LB/RB hotbar · Start pause'],

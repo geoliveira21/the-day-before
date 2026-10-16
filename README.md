@@ -30,9 +30,30 @@ All visuals remain procedural and offline: this is an art-direction blockout,
 not a photorealistic asset pack. Future art should preserve human-scale street
 detail, weathering and muted materials rather than saturated colors or neon.
 
+## Regional map
+
+The map follows the reference's north–south organization, not an exact copy of
+its coastline, buildings or numbered markers. North is **−Z** in the world and
+up on both maps. The default playable area is **392 × 716 meters**:
+
+- **South — West End:** dense city blocks, alleys and a diagonal avenue cutting
+  through the street grid. The expedition starts on the main avenue here.
+- **Center — Midlands:** spaced residential lots, a factory and warehouses to
+  the west, plus a hospital and market. Loading bays, chimneys and roof vents
+  distinguish the industrial buildings.
+- **North — North Ridge:** a forested corridor with a narrower winding road
+  and a ranger station reached by a short branch road.
+
+Follow the main avenue north to move between the regions without a loading
+screen. Hold **M** for the north-up field map with landmarks and your current
+position; release it to return to the local view. **The map does not pause the
+world.** Loot, vehicle searches, crafting, infected and weather remain active.
+The field map currently uses a keyboard shortcut; the local minimap remains
+visible with gamepad and touch controls.
+
 ## Features
 
-- **Procedural Manhattan-style city**: a seeded grid of avenues, streets, and alleys. It has abandoned buildings of varying heights (some ruined), wrecked and burned cars, rubble, debris, bent streetlights, and burning barrels.
+- **Procedural regional world**: a seeded southern city, central industrial/residential belt and northern woodland linked by a main road, with diagonal and winding routes. Abandoned buildings, wrecked cars, rubble and overgrowth preserve the survival atmosphere.
 - **Third-person player**: walk, sprint, and jump, with idle/walk/run/jump/attack/dead animation states. Health, stamina, hunger, and thirst, plus an overweight penalty.
 - **Combat**: melee weapons with cooldowns, damage, knockback, and blood particles. Infected enemies use a patrol → chase → attack AI and grow more aggressive at night.
 - **Inventory and crafting**: weight-limited inventory (35 kg), a 5-slot hotbar, and a detailed inventory view. Recipes include bandages, food rations, a wooden club, a metal pipe, a spiked bat, a pickaxe, and a flashlight.
@@ -58,6 +79,7 @@ detail, weathering and muted materials rather than saturated colors or neon.
 | Flashlight | F | D-pad up |
 | Inventory | Tab / I | Y |
 | Crafting | C | B |
+| Field map (hold; no pause) | M | — |
 | Pause | Esc / P | Start |
 
 ## Project structure

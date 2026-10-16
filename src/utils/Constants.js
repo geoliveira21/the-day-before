@@ -17,7 +17,7 @@ export const PLAY_STATES = new Set([GAME_STATES.EXPLORATION, GAME_STATES.COMBAT]
 export const WORLD = Object.freeze({
   SEED: 1337,
   BLOCKS_X: 7,
-  BLOCKS_Z: 7,
+  BLOCKS_Z: 13,
   BLOCK_SIZE: 40,
   STREET_WIDTH: 14,
   ALLEY_WIDTH: 4,

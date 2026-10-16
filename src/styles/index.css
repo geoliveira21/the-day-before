@@ -1003,6 +1003,31 @@ body {
 }
 
 /* ------------------------------------------------------------------ responsive */
+.field-map {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 12px;
+  max-width: 94vw;
+  text-align: center;
+  background: rgba(18, 23, 19, 0.97);
+}
+
+.field-map-heading {
+  font-family: var(--mono);
+  letter-spacing: 0.15em;
+  margin-bottom: 8px;
+}
+
+.field-map-canvas {
+  display: block;
+  height: min(72vh, 720px);
+  max-width: 84vw;
+  object-fit: contain;
+  margin: 0 auto 8px;
+}
+
 @media (max-width: 760px) {
   .hud-minimap {
     width: 120px;
