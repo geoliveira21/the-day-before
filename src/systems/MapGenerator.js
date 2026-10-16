@@ -482,6 +482,11 @@ export class MapGenerator {
     return this.layout;
   }
 
+  getSurfaceHeight(x, z) {
+    return this.layout.blocks.some((b) => x >= b.minX - 1 && x <= b.maxX + 1 && z >= b.minZ - 1 && z <= b.maxZ + 1)
+      ? this.config.SIDEWALK_HEIGHT : 0;
+  }
+
   /**
    * @param {THREE.Scene} scene
    * @param {import('./PhysicsManager.js').PhysicsManager} physics
@@ -917,7 +922,7 @@ export class MapGenerator {
     }
 
     for (const g of layout.groundItems) {
-      add(WorldObject.createPickup(g.id, g.qty, new THREE.Vector3(g.x, 0, g.z)));
+      add(WorldObject.createPickup(g.id, g.qty, new THREE.Vector3(g.x, this.getSurfaceHeight(g.x, g.z), g.z)));
     }
 
     const fireBarrelMat = new THREE.MeshStandardMaterial({ color: 0x2a2420, roughness: 0.8, metalness: 0.4, emissive: 0x401000, emissiveIntensity: 0.6 });

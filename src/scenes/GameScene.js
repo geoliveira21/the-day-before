@@ -515,6 +515,7 @@ export class GameScene {
   }
 
   _spawnPickup(id, qty, pos) {
+    pos.y = this.map.getSurfaceHeight(pos.x, pos.z);
     const obj = WorldObject.createPickup(id, qty, pos);
     this.world.root.add(obj.root);
     this.worldObjects.push(obj);

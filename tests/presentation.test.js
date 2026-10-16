@@ -6,8 +6,25 @@ import { PhysicsManager } from '../src/systems/PhysicsManager.js';
 import { createRNG } from '../src/utils/Helpers.js';
 import { WorldObject } from '../src/objects/WorldObject.js';
 import { InventorySystem } from '../src/systems/InventorySystem.js';
+import { WORLD } from '../src/utils/Constants.js';
 
 describe('survival scene presentation', () => {
+  it.each(['cloth', 'electronics', 'scrap_metal', 'crowbar'])('rests %s above both asphalt and raised sidewalks', (id) => {
+    const map = new MapGenerator();
+    const layout = map.generate();
+    const block = layout.blocks[0];
+    const alleyX = (block.minX + block.maxX) / 2;
+    const alleyZ = (block.minZ + block.maxZ) / 2;
+    expect(map.getSurfaceHeight(alleyX, alleyZ)).toBe(WORLD.SIDEWALK_HEIGHT);
+    expect(map.getSurfaceHeight(layout.playerSpawn.x, layout.playerSpawn.z)).toBe(0);
+    for (const [x, z] of [[alleyX, alleyZ], [layout.playerSpawn.x, layout.playerSpawn.z]]) {
+      const y = map.getSurfaceHeight(x, z);
+      const item = WorldObject.createPickup(id, 1, new THREE.Vector3(x, y, z));
+      item.root.updateMatrixWorld(true);
+      expect(new THREE.Box3().setFromObject(item.mesh).min.y).toBeCloseTo(y + 0.02);
+    }
+  });
+
   it('keeps supplies grounded and only highlights focused loot without changing pickup behavior', () => {
     const item = WorldObject.createPickup('cloth', 2, new THREE.Vector3());
     const height = item.mesh.position.y;

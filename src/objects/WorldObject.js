@@ -73,7 +73,7 @@ export class WorldObject {
   static createPickup(id, qty, position) {
     const item = ITEMS[id];
     const mesh = createItemMesh(id, item);
-    mesh.position.y = 0.12;
+    mesh.position.y = 0.02 - new THREE.Box3().setFromObject(mesh).min.y;
     return new WorldObject({
       kind: 'pickup',
       type: id,
