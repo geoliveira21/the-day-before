@@ -54,10 +54,10 @@ const AtmosphereShader = {
       vec4 color = texture2D(tDiffuse, vUv);
       float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
       color.rgb = mix(vec3(gray), color.rgb, 0.78);
-      float v = smoothstep(0.85, 0.25, length(vUv - 0.5));
-      color.rgb *= mix(0.55, 1.0, v);
+      float v = 1.0 - smoothstep(0.25, 0.85, length(vUv - 0.5));
+      color.rgb *= mix(0.78, 1.0, v);
       color.rgb = mix(color.rgb, vec3(0.5, 0.0, 0.0), damage * (1.0 - v) * 0.8);
-      color.rgb += (rand(vUv * 1000.0 + time) - 0.5) * 0.035;
+      color.rgb += (rand(vUv * 1000.0 + time) - 0.5) * 0.012;
       gl_FragColor = color;
     }
   `,
@@ -77,8 +77,8 @@ export class GameScene {
     this.state = GAME_STATES.LOADING;
     this.started = false;
     this.kills = 0;
-    this.cameraYaw = Math.PI * 0.25;
-    this.cameraPitch = 0.25;
+    this.cameraYaw = 0;
+    this.cameraPitch = 0.12;
     this.cameraDistance = CAMERA.DISTANCE;
     this.cameraShake = 0;
     this.damageFlash = 0;
@@ -203,7 +203,7 @@ export class GameScene {
     });
     this.composer = new EffectComposer(this.renderer, target);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.45, 0.5, 0.82);
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.16, 0.4, 1.1);
     this.composer.addPass(this.bloomPass);
     this.atmospherePass = new ShaderPass(AtmosphereShader);
     this.composer.addPass(this.atmospherePass);
@@ -704,7 +704,7 @@ export class GameScene {
     this.scene.fog.color.copy(this.dayNight.fogColor).lerp(LIGHTNING_COLOR, this.weather.flash * 0.3);
     this.scene.fog.density = this.weather.fogDensity + (1 - daylight) * 0.004;
     this.renderer.toneMappingExposure = lerp(1.35, 1.05, daylight);
-    for (const m of this.world.windowMaterials) m.emissiveIntensity = (1 - daylight) * 1.6;
+    for (const m of this.world.windowMaterials) m.emissiveIntensity = (1 - daylight) * 0.18;
 
     // Fires
     const p = focus;

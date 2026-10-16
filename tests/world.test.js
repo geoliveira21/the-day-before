@@ -103,6 +103,23 @@ describe('generateCityLayout', () => {
     for (const b of layout.buildings) expect(b.h).toBeGreaterThan(0);
   });
 
+  it('includes deterministic curbside overgrowth and low-rise residential blocks', () => {
+    expect(generateCityLayout(1337).scenery).toEqual(layout.scenery);
+    expect(layout.scenery.filter((p) => p.type === 'weeds').length).toBeGreaterThan(100);
+    expect(layout.scenery.some((p) => p.type === 'tree')).toBe(true);
+    const homes = layout.buildings.filter((b) => b.residential);
+    expect(homes.length).toBeGreaterThan(10);
+    for (const home of homes) expect(home.h).toBeLessThanOrEqual(12);
+    for (const p of layout.scenery) {
+      expect(p.scale).toBeGreaterThan(0);
+      expect(Math.hypot(p.x - layout.playerSpawn.x, p.z - layout.playerSpawn.z)).toBeGreaterThan(6);
+      expect(layout.streets.some((s) => {
+        const across = Math.abs(s.axis === 'z' ? p.x - s.x : p.z - s.z);
+        return across >= s.width / 2 - 1 && across <= s.width / 2;
+      })).toBe(true);
+    }
+  });
+
   it('only references valid items and loot tables', () => {
     for (const g of layout.groundItems) expect(ITEMS[g.id]).toBeDefined();
     for (const c of layout.containers) expect(LOOT_TABLES[c.type]).toBeDefined();

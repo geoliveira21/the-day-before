@@ -15,6 +15,21 @@ npm test          # unit tests (Vitest)
 
 Requires a browser with WebGL2 support.
 
+## Visual direction
+
+The West End demo targets grounded, third-person urban survival: dusty olive and
+concrete tones, hazy daylight, shuttered shops, rusted vehicles, cracked asphalt
+and weeds reclaiming the curbs. Lower residential blocks border the denser city.
+A closer shoulder camera frames a rounded survivor silhouette with backpack,
+straps, pouches and a bedroll. The subdued field UI leaves the street readable.
+
+Start an expedition, follow the avenue and search vehicles with **E**; starter
+supplies are scattered around the first intersection. Inventory (**Tab**) and
+crafting (**C**) remain available, as do combat, weather and the day/night cycle.
+All visuals remain procedural and offline: this is an art-direction blockout,
+not a photorealistic asset pack. Future art should preserve human-scale street
+detail, weathering and muted materials rather than saturated colors or neon.
+
 ## Features
 
 - **Procedural Manhattan-style city**: a seeded grid of avenues, streets, and alleys. It has abandoned buildings of varying heights (some ruined), wrecked and burned cars, rubble, debris, bent streetlights, and burning barrels.

@@ -60,17 +60,18 @@ export class MenuUI {
   }
 
   _buildMain() {
-    this.playButton = this._button('▶ Start Surviving', () => this.callbacks.onPlay?.());
+    this.playButton = this._button('Enter the quarantine zone', () => this.callbacks.onPlay?.());
     return el('div', 'screen main-menu', {}, [
       el('div', 'menu-card', {}, [
         el('h1', 'title', { text: 'THE DAY BEFORE' }),
-        el('div', 'subtitle', { text: 'Scavenge. Craft. Survive the night.' }),
+        el('div', 'subtitle', { text: 'West End · Evacuation sector 04' }),
+        el('p', 'menu-brief', { text: 'The evacuation is over. Search the abandoned streets for water and supplies. Keep moving. Be inside before dark.' }),
         el('div', 'menu-buttons', {}, [
           this.playButton,
-          this._button('⚙ Settings', () => this.show('settings')),
-          this._button('🎮 Controls', () => this.show('controls')),
+          this._button('Settings', () => this.show('settings')),
+          this._button('Field controls', () => this.show('controls')),
         ]),
-        el('p', 'muted small', { text: 'Single-player prototype · Three.js WebGL · Procedural city' }),
+        el('p', 'muted small', { text: 'Survival field prototype / Single player' }),
       ]),
     ]);
   }

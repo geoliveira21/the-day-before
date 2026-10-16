@@ -3,8 +3,8 @@ import { DAY_NIGHT } from '../utils/Constants.js';
 import { clamp, formatTime, lerp, smoothstep } from '../utils/Helpers.js';
 
 const SKY = {
-  dayTop: new THREE.Color(0x5d7d9c),
-  dayHorizon: new THREE.Color(0xb8b09a),
+  dayTop: new THREE.Color(0x969f9f),
+  dayHorizon: new THREE.Color(0xc1bca9),
   duskTop: new THREE.Color(0x2e3560),
   duskHorizon: new THREE.Color(0xd8703f),
   nightTop: new THREE.Color(0x03050b),
@@ -120,7 +120,7 @@ export class DayNightCycle {
   attach(scene) {
     this.scene = scene;
 
-    this.hemiLight = new THREE.HemisphereLight(0xbfd1e5, 0x3a3226, 0.6);
+    this.hemiLight = new THREE.HemisphereLight(0xbfd1e5, 0x676355, 0.6);
     scene.add(this.hemiLight);
 
     this.ambient = new THREE.AmbientLight(0x404a60, 0.12);
@@ -216,7 +216,7 @@ export class DayNightCycle {
 
     this.sunLight.position.copy(focus).addScaledVector(sunDir, 120);
     this.sunLight.target.position.copy(focus);
-    this.sunLight.intensity = 2.4 * smoothstep(-0.02, 0.2, elevation);
+    this.sunLight.intensity = 1.8 * smoothstep(-0.02, 0.2, elevation);
     this.sunLight.color.setRGB(1, lerp(0.55, 0.95, smoothstep(0, 0.5, elevation)), lerp(0.3, 0.85, smoothstep(0, 0.5, elevation)));
 
     this.moonLight.position.copy(focus).addScaledVector(moonDir, 120);

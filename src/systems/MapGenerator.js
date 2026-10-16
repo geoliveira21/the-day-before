@@ -36,6 +36,7 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
     groundItems: [],
     fireBarrels: [],
     enemySpawns: [],
+    scenery: [],
     playerSpawn: null,
   };
 
@@ -111,8 +112,10 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
         const margin = 1;
         const w = lw - margin * 2 - rng.range(0, 3);
         const d = ld - margin * 2 - rng.range(0, 3);
+        const residential = bx === 0 || bz === config.BLOCKS_Z - 1;
         const tall = rng.chance(0.12);
         let h = tall ? rng.range(config.MAX_BUILDING_HEIGHT * 0.7, config.MAX_BUILDING_HEIGHT) : rng.range(config.MIN_BUILDING_HEIGHT, config.MAX_BUILDING_HEIGHT * 0.5);
+        if (residential) h = Math.min(h, 12);
         const ruined = rng.chance(config.RUINED_CHANCE);
         if (ruined) h *= rng.range(0.45, 0.8);
         h = Math.round(h / 4) * 4 || 8; // align to floors (texture tiles are 4 units)
@@ -123,6 +126,7 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
           d,
           h,
           ruined,
+          residential,
           style: rng.int(0, 2),
           roofDetails: rng.int(0, 3),
           seed: rng.int(1, 1e9),
@@ -253,6 +257,31 @@ export function generateCityLayout(seed = WORLD.SEED, config = WORLD) {
     layout.enemySpawns.push(p);
   }
 
+  // Separate stream keeps decorative changes from relocating supplies or enemies.
+  const dressing = createRNG(seed ^ 0x39a72);
+  for (const street of layout.streets) {
+    const segments = street.axis === 'z' ? config.BLOCKS_Z : config.BLOCKS_X;
+    for (let i = 0; i < segments; i++) {
+      const along = (street.axis === 'z' ? originZ : originX) + S + i * pitch;
+      for (const side of [-1, 1]) {
+        for (let k = 0; k < 9; k++) {
+          const offset = side * (S / 2 - dressing.range(0.1, 0.9));
+          const a = along + dressing.range(2, B - 2);
+          const x = street.axis === 'z' ? street.x + offset : a;
+          const z = street.axis === 'z' ? a : street.z + offset;
+          if (!overlaps(x, z, 0.45)) layout.scenery.push({ type: 'weeds', x, z, scale: dressing.range(0.5, 1.4), rot: dressing.range(0, Math.PI * 2) });
+        }
+        const offset = side * (S / 2 - 0.8);
+        const a = along + B * 0.65;
+        const x = street.axis === 'z' ? street.x + offset : a;
+        const z = street.axis === 'z' ? a : street.z + offset;
+        if (!overlaps(x, z, 1.5) && !nearSpawn(x, z, 8)) {
+          layout.scenery.push({ type: 'tree', x, z, scale: dressing.range(0.8, 1.2), rot: dressing.range(0, Math.PI * 2) });
+          occupy(x, z, 0.5, 0.5);
+        }
+      }
+    }
+  }
   return layout;
 }
 
@@ -291,6 +320,18 @@ function createFacadeTextures(baseColor, rng) {
   g.fillStyle = baseColor;
   g.fillRect(0, 0, size, size);
   noise(g, size, 0.08, rng);
+  g.strokeStyle = 'rgba(25,25,20,0.16)';
+  g.lineWidth = 1;
+  for (let y = 0; y < size; y += 8) {
+    g.beginPath();
+    g.moveTo(0, y);
+    g.lineTo(size, y);
+    for (let x = (y % 16 ? 0 : 8); x < size; x += 16) {
+      g.moveTo(x, y);
+      g.lineTo(x, y + 8);
+    }
+    g.stroke();
+  }
   ge.fillStyle = '#000';
   ge.fillRect(0, 0, size, size);
   const cell = size / 4;
@@ -472,6 +513,7 @@ export class MapGenerator {
 
     await onProgress(0.5, 'Scattering debris');
     this._buildProps(root, layout, physics, rng, result);
+    this._buildScenery(root, layout, physics);
 
     await onProgress(0.65, 'Hiding supplies');
     this._buildInteractables(root, layout, physics, rng, result);
@@ -495,10 +537,10 @@ export class MapGenerator {
   }
 
   _buildGround(root, layout, rng) {
-    const asphalt = createGroundTexture(rng, '#2b2b2d');
+    const asphalt = createGroundTexture(rng, '#454743');
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(layout.width + 400, layout.depth + 400),
-      new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.95, color: 0x9a9a9a }),
+      new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.95, color: 0xb1b0a7 }),
     );
     asphalt.repeat.set((layout.width + 400) / 16, (layout.depth + 400) / 16);
     ground.rotation.x = -Math.PI / 2;
@@ -527,6 +569,7 @@ export class MapGenerator {
     const dashes = [];
     for (const st of layout.streets) {
       for (let s = -st.length / 2 + 2; s < st.length / 2 - 2; s += 7) {
+        if (layout.streets.some((cross) => cross.axis !== st.axis && Math.abs(s - (cross.axis === 'x' ? cross.z : cross.x)) < cross.width / 2)) continue;
         if (rng.chance(0.25)) continue; // worn off
         dashes.push(st.axis === 'z' ? { x: st.x, z: s, r: 0 } : { x: s, z: st.z, r: Math.PI / 2 });
       }
@@ -544,7 +587,7 @@ export class MapGenerator {
   }
 
   _buildBuildings(root, layout, physics, rng, result) {
-    const palettes = ['#6d6258', '#5b5f63', '#7a5b4a'];
+    const palettes = ['#716c60', '#626968', '#765e50'];
     const facadeMats = palettes.map((color) => {
       const { map, emissiveMap } = createFacadeTextures(color, rng);
       const mat = new THREE.MeshStandardMaterial({
@@ -560,6 +603,21 @@ export class MapGenerator {
     const roofMat = new THREE.MeshStandardMaterial({ color: 0x3b3a38, roughness: 1 });
     const ruinMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
     const detailMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0.2 });
+    const shopSigns = ['WEST END MARKET', 'PHARMACY', 'LAUNDRY', 'AUTO SERVICE'];
+    const signMats = shopSigns.map((label) => {
+      const [canvas, g] = makeCanvas(256);
+      canvas.height = 48;
+      g.fillStyle = '#323d39';
+      g.fillRect(0, 0, 256, 256);
+      g.fillStyle = '#c3bda5';
+      g.textAlign = 'center';
+      g.font = 'bold 19px sans-serif';
+      g.fillText(label, 128, 31);
+      noise(g, 256, 0.22, rng, 2500);
+      const map = new THREE.CanvasTexture(canvas);
+      map.colorSpace = THREE.SRGBColorSpace;
+      return new THREE.MeshStandardMaterial({ map, roughness: 1 });
+    });
 
     for (const b of layout.buildings) {
       const brng = createRNG(b.seed);
@@ -575,6 +633,22 @@ export class MapGenerator {
       physics.addBox({ minX: b.x - b.w / 2, maxX: b.x + b.w / 2, minZ: b.z - b.d / 2, maxZ: b.z + b.d / 2, maxY: b.h }, { type: 'building' });
 
       const details = [];
+      // Recessed storefronts, shutter slats and cornices give the street human scale.
+      for (const side of [-1, 1]) {
+        const z = b.z + side * (b.d / 2 + 0.035);
+        details.push(colored(placed(new THREE.BoxGeometry(b.w - 0.8, 2.7, 0.08), b.x, 1.5, z), 0x303637));
+        for (let y = 0.3; y < 2.8; y += 0.18) {
+          details.push(colored(placed(new THREE.BoxGeometry(b.w - 1, 0.035, 0.12), b.x, y, z + side * 0.06), 0x555952));
+        }
+        details.push(colored(placed(new THREE.BoxGeometry(b.w + 0.15, 0.22, 0.35), b.x, 3.15, z), 0x8b8575));
+        for (let x = -b.w / 2 + 0.25; x < b.w / 2; x += 3) {
+          details.push(colored(placed(new THREE.BoxGeometry(0.18, 3, 0.25), b.x + x, 1.5, z), 0x736f65));
+        }
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(b.w - 1, 6), 0.9), signMats[b.seed % signMats.length]);
+        sign.position.set(b.x, 3.8, z + side * 0.15);
+        sign.rotation.y = side < 0 ? Math.PI : 0;
+        root.add(sign);
+      }
       if (b.ruined) {
         // Jagged broken floors on top.
         const pieces = brng.int(2, 4);
@@ -642,14 +716,74 @@ export class MapGenerator {
 
   _carGeometry(rng) {
     const parts = [];
-    parts.push(colored(placed(new THREE.BoxGeometry(1.9, 0.7, 4.3), 0, 0.65, 0), 0xffffff));
-    parts.push(colored(placed(new THREE.BoxGeometry(1.7, 0.6, 2.2), 0, 1.3, -0.25), 0xdddddd));
-    parts.push(colored(placed(new THREE.BoxGeometry(1.72, 0.45, 2.0), 0, 1.3, -0.25), 0x151a1f)); // windows
+    parts.push(colored(placed(new THREE.BoxGeometry(1.85, 0.55, 4.3), 0, 0.65, 0), 0xb4b2a7));
+    const cabin = new THREE.BoxGeometry(1.7, 0.65, 2.2);
+    const positions = cabin.attributes.position;
+    for (let i = 0; i < positions.count; i++) {
+      if (positions.getY(i) > 0) {
+        positions.setX(i, positions.getX(i) * 0.82);
+        positions.setZ(i, positions.getZ(i) * 0.7);
+      }
+    }
+    cabin.computeVertexNormals();
+    parts.push(colored(placed(cabin, 0, 1.2, -0.25), 0x252e30));
+    parts.push(colored(placed(new THREE.BoxGeometry(1.45, 0.08, 1.55), 0, 1.56, -0.25), 0xaaa99e));
+    for (const side of [-1, 1]) {
+      parts.push(colored(placed(new THREE.BoxGeometry(0.08, 0.6, 0.1), side * 0.8, 1.2, -0.25), 0x95968e));
+      parts.push(colored(placed(new THREE.BoxGeometry(0.06, 0.04, 0.23), side * 0.94, 0.86, -0.3), 0x272a28));
+      parts.push(colored(placed(new THREE.BoxGeometry(1.8, 0.16, 0.13), 0, 0.44, side * 2.15), 0x454944));
+      for (const x of [-0.62, 0.62]) {
+        parts.push(colored(placed(new THREE.BoxGeometry(0.42, 0.18, 0.04), x, 0.78, side * 2.16), side > 0 ? 0xb9b597 : 0x643d34));
+      }
+    }
+    for (let i = 0; i < 16; i++) {
+      parts.push(colored(placed(new THREE.BoxGeometry(0.015, rng.range(0.05, 0.24), rng.range(0.1, 0.5)), (i % 2 ? 1 : -1) * 0.93, rng.range(0.45, 0.85), rng.range(-1.8, 1.8)), 0x6c4935));
+    }
     for (const [x, z] of [[0.9, 1.35], [-0.9, 1.35], [0.9, -1.35], [-0.9, -1.35]]) {
       if (rng.chance(0.2)) continue; // missing wheel
       parts.push(colored(placed(new THREE.CylinderGeometry(0.38, 0.38, 0.3, 10), x, 0.35, z, 0, 0, Math.PI / 2), 0x151515));
     }
     return mergeGeometries(parts);
+  }
+
+  _buildScenery(root, layout, physics) {
+    const rng = createRNG(this.seed ^ 0x672a);
+    const grassParts = [];
+    for (let i = 0; i < 18; i++) {
+      const h = rng.range(0.18, 0.65);
+      grassParts.push(colored(placed(new THREE.ConeGeometry(0.045, h, 3), rng.range(-0.45, 0.45), h / 2, rng.range(-0.45, 0.45), rng.range(-0.3, 0.3), rng.range(0, 6), 0), rng.pick([0x60634a, 0x737052, 0x454e3c])));
+    }
+    const treeParts = [
+      colored(placed(new THREE.CylinderGeometry(0.12, 0.26, 4.5, 8), 0, 2.25, 0, 0, 0, 0.06), 0x514b3e),
+    ];
+    for (let i = 0; i < 6; i++) {
+      const angle = i * Math.PI / 3;
+      treeParts.push(colored(placed(new THREE.CylinderGeometry(0.035, 0.08, 2.1, 6), Math.cos(angle) * 0.6, 3.5 + i * 0.17, Math.sin(angle) * 0.6, Math.sin(angle) * 0.7, 0, -Math.cos(angle) * 0.7), 0x514b3e));
+    }
+    for (let i = 0; i < 65; i++) {
+      const leaf = new THREE.SphereGeometry(rng.range(0.2, 0.5), 6, 4);
+      leaf.scale(1, 0.55, 1);
+      treeParts.push(colored(placed(leaf, rng.range(-1.6, 1.6), rng.range(3.7, 5.7), rng.range(-1.6, 1.6)), rng.pick([0x48503c, 0x5d6348, 0x717052])));
+    }
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+    for (const [type, parts] of [['weeds', grassParts], ['tree', treeParts]]) {
+      const entries = layout.scenery.filter((p) => p.type === type);
+      const geometry = mergeGeometries(parts);
+      const mesh = new THREE.InstancedMesh(geometry, mat, entries.length);
+      mesh.name = type;
+      const transform = new THREE.Object3D();
+      entries.forEach((p, i) => {
+        transform.position.set(p.x, 0.04, p.z);
+        transform.rotation.y = p.rot;
+        transform.scale.setScalar(p.scale);
+        transform.updateMatrix();
+        mesh.setMatrixAt(i, transform.matrix);
+        if (type === 'tree') physics.addBox({ minX: p.x - 0.25, maxX: p.x + 0.25, minZ: p.z - 0.25, maxZ: p.z + 0.25, maxY: 3 }, { type: 'tree' });
+      });
+      mesh.castShadow = type === 'tree';
+      mesh.receiveShadow = true;
+      root.add(mesh);
+    }
   }
 
   _rubbleGeometry(rng) {

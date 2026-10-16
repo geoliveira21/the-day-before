@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 /**
- * Builds a blocky low-poly humanoid rig used by both the player and enemies.
+ * Builds a clothed humanoid rig used by both the player and enemies.
  * Pivots are placed at joints so limbs can be rotated for simple procedural animation.
  */
 export function createHumanoid(materials, { scale = 1 } = {}) {
@@ -10,7 +11,7 @@ export function createHumanoid(materials, { scale = 1 } = {}) {
   root.add(body);
 
   const box = (w, h, d, mat) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    const m = new THREE.Mesh(new RoundedBoxGeometry(w, h, d, 2, Math.min(w, h, d) * 0.24), mat);
     m.castShadow = true;
     m.receiveShadow = true;
     return m;
@@ -42,15 +43,34 @@ export function createHumanoid(materials, { scale = 1 } = {}) {
 
   const head = new THREE.Group();
   head.position.y = 0.72;
-  const headMesh = box(0.3, 0.32, 0.3, materials.skin);
+  const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), materials.skin);
+  headMesh.scale.set(0.85, 1.1, 0.9);
+  headMesh.castShadow = true;
   headMesh.position.y = 0.12;
   head.add(headMesh);
   torso.add(head);
 
   if (materials.extra) {
-    const pack = box(0.4, 0.45, 0.18, materials.extra);
-    pack.position.set(0, 0.35, -0.23);
+    const pack = box(0.44, 0.57, 0.26, materials.extra);
+    pack.name = 'backpack';
+    pack.position.set(0, 0.35, -0.27);
     torso.add(pack);
+    const pocket = box(0.32, 0.24, 0.09, materials.extra);
+    pocket.position.set(0, 0.2, -0.43);
+    torso.add(pocket);
+    for (const side of [-1, 1]) {
+      const strap = box(0.055, 0.57, 0.045, materials.shoes);
+      strap.position.set(side * 0.18, 0.35, 0.16);
+      strap.rotation.z = side * -0.12;
+      const pouch = box(0.12, 0.22, 0.18, materials.extra);
+      pouch.position.set(side * 0.28, 0.02, 0);
+      torso.add(strap, pouch);
+    }
+    const bedroll = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.48, 12), materials.bottom);
+    bedroll.rotation.z = Math.PI / 2;
+    bedroll.position.set(0, 0.68, -0.27);
+    bedroll.castShadow = true;
+    torso.add(bedroll);
   }
 
   const makeArm = (x) => {

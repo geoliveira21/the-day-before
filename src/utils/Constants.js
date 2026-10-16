@@ -55,8 +55,8 @@ export const PLAYER = Object.freeze({
 });
 
 export const CAMERA = Object.freeze({
-  FOV: 65,
-  DISTANCE: 4.5,
+  FOV: 58,
+  DISTANCE: 3.6,
   MIN_PITCH: -0.35,
   MAX_PITCH: 1.1,
   SHOULDER_OFFSET: 0.6,
@@ -200,7 +200,7 @@ export const WEATHER = Object.freeze({
   TYPES: ['clear', 'fog', 'rain'],
   MIN_DURATION: 60,
   MAX_DURATION: 180,
-  FOG_DENSITY: { clear: 0.007, fog: 0.022, rain: 0.013 },
+  FOG_DENSITY: { clear: 0.010, fog: 0.022, rain: 0.013 },
   RAIN_DROPS: 2500,
 });
 
