@@ -53,7 +53,7 @@ export class WorldObject {
     const tex = getMarkerTexture();
     if (tex) {
       this.marker = new THREE.Sprite(
-        new THREE.SpriteMaterial({ map: tex, color: kind === 'pickup' ? 0x9cff9c : 0xffd27a, transparent: true, depthWrite: false, opacity: 0 }),
+        new THREE.SpriteMaterial({ map: tex, color: 0xd4d5c5, transparent: true, depthWrite: false, opacity: 0 }),
       );
       this.marker.position.y = markerHeight;
       this.marker.scale.setScalar(0.35);
@@ -62,8 +62,9 @@ export class WorldObject {
     if (kind === 'pickup') {
       this.ring = new THREE.Mesh(
         ringGeometry,
-        new THREE.MeshBasicMaterial({ color: 0x9cff9c, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }),
+        new THREE.MeshBasicMaterial({ color: 0xd4d5c5, transparent: true, opacity: 0, depthWrite: false }),
       );
+      this.ring.visible = false;
       this.ring.position.y = 0.03;
       this.root.add(this.ring);
     }
@@ -72,7 +73,7 @@ export class WorldObject {
   static createPickup(id, qty, position) {
     const item = ITEMS[id];
     const mesh = createItemMesh(id, item);
-    mesh.position.y = 0.25;
+    mesh.position.y = 0.02 - new THREE.Box3().setFromObject(mesh).min.y;
     return new WorldObject({
       kind: 'pickup',
       type: id,
@@ -181,20 +182,17 @@ export class WorldObject {
     this.time += dt;
     const visible = this.isActive && distanceToPlayer < 14;
     if (this.marker) {
-      const target = !visible ? 0 : this.focused ? 1 : 0.55;
+      const target = !visible ? 0 : this.focused ? 0.65 : distanceToPlayer < 5 ? 0.18 : 0;
       const m = this.marker.material;
       m.opacity += (target - m.opacity) * Math.min(1, dt * 8);
       this.marker.visible = m.opacity > 0.01;
       const pulse = 1 + Math.sin(this.time * 4) * 0.15;
-      this.marker.scale.setScalar((this.focused ? 0.55 : 0.32) * pulse);
+      this.marker.scale.setScalar((this.focused ? 0.22 : 0.12) * pulse);
     }
     if (this.kind === 'pickup' && this.mesh) {
-      this.mesh.rotation.y += dt * 1.2;
-      this.mesh.position.y = 0.25 + Math.sin(this.time * 2) * 0.06;
       if (this.ring) {
-        this.ring.visible = visible;
-        this.ring.material.opacity = (this.focused ? 0.9 : 0.4) + Math.sin(this.time * 3) * 0.1;
-        this.ring.scale.setScalar(this.focused ? 1.25 : 1);
+        this.ring.visible = visible && this.focused;
+        this.ring.material.opacity = 0.25;
       }
     }
   }

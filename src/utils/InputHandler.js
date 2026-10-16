@@ -10,6 +10,7 @@ const KEY_BINDINGS = {
   interact: ['KeyE'],
   inventory: ['Tab', 'KeyI'],
   crafting: ['KeyC'],
+  map: ['KeyM'],
   pause: ['Escape', 'KeyP'],
   flashlight: ['KeyF'],
   attack: [],

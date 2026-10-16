@@ -1,5 +1,6 @@
 import { ITEMS, PLAYER } from '../utils/Constants.js';
 import { el } from '../utils/Helpers.js';
+import { drawMapLayout } from './MapView.js';
 
 const MINIMAP_SIZE = 180;
 const MINIMAP_RANGE = 70; // world units from centre to edge
@@ -38,6 +39,13 @@ export class HUD {
     this.minimapCanvas.height = MINIMAP_SIZE;
     this.minimapCtx = this.minimapCanvas.getContext('2d');
     this.minimap = el('div', 'hud-minimap', {}, [this.minimapCanvas, el('div', 'minimap-north', { text: 'N' })]);
+    this.overviewCanvas = el('canvas', 'field-map-canvas');
+    this.overview = el('div', 'field-map panel hidden', {}, [
+      el('div', 'field-map-heading', { text: 'FIELD MAP · N ↑' }),
+      this.overviewCanvas,
+      el('div', 'muted small', { text: 'North Ridge / Midlands / West End · You are the white marker' }),
+      el('div', 'muted small', { text: 'Hold M to view · The world does not pause' }),
+    ]);
 
     this.hotbarSlots = [];
     this.hotbar = el('div', 'hud-hotbar');
@@ -60,7 +68,7 @@ export class HUD {
     this.fps = el('div', 'hud-fps hidden');
     this.combatBanner = el('div', 'hud-combat hidden', { text: '⚠ HOSTILES NEARBY' });
     this.controlsHint = el('div', 'hud-controls', {
-      text: 'WASD move · Shift sprint · Space jump · LMB attack/use · E interact · Tab inventory · C craft · F flashlight · Esc pause',
+      text: 'WASD move · Shift sprint · E interact · Tab inventory · C craft · Hold M map · F flashlight · Esc pause',
     });
 
     this.root.append(
@@ -76,6 +84,7 @@ export class HUD {
       this.fps,
       this.combatBanner,
       this.controlsHint,
+      this.overview,
     );
     setTimeout(() => this.controlsHint.classList.add('fade'), 12000);
   }
@@ -97,21 +106,10 @@ export class HUD {
     c.width = Math.ceil(layout.width * MAP_SCALE);
     c.height = Math.ceil(layout.depth * MAP_SCALE);
     const g = c.getContext('2d');
-    g.fillStyle = '#23262a';
-    g.fillRect(0, 0, c.width, c.height);
-    const tx = (x) => (x - layout.bounds.minX) * MAP_SCALE;
-    const tz = (z) => (z - layout.bounds.minZ) * MAP_SCALE;
-    g.fillStyle = '#3a3c3f';
-    for (const b of layout.blocks) g.fillRect(tx(b.minX), tz(b.minZ), (b.maxX - b.minX) * MAP_SCALE, (b.maxZ - b.minZ) * MAP_SCALE);
-    for (const b of layout.buildings) {
-      g.fillStyle = b.ruined ? '#5a4f45' : '#6d6f73';
-      g.fillRect(tx(b.x - b.w / 2), tz(b.z - b.d / 2), b.w * MAP_SCALE, b.d * MAP_SCALE);
-    }
-    g.fillStyle = '#4b4f55';
-    for (const p of layout.props) {
-      if (p.type === 'car') g.fillRect(tx(p.x) - 3, tz(p.z) - 3, 6, 6);
-    }
+    drawMapLayout(g, layout, MAP_SCALE);
     this.mapCanvas = c;
+    this.overviewCanvas.width = c.width;
+    this.overviewCanvas.height = c.height;
   }
 
   /**
@@ -175,9 +173,37 @@ export class HUD {
     g.closePath();
     g.fill();
     g.restore();
+    if (!this.overview.classList.contains('hidden')) this.drawOverview(player);
   }
 
-  update({ player, inventory, dayNight, weather, fps, showFps, pointerHint, inCombat }) {
+  drawOverview(player) {
+    const g = this.overviewCanvas.getContext('2d');
+    g.drawImage(this.mapCanvas, 0, 0);
+    const tx = (x) => (x - this.layout.bounds.minX) * MAP_SCALE;
+    const tz = (z) => (z - this.layout.bounds.minZ) * MAP_SCALE;
+    g.font = 'bold 22px sans-serif';
+    g.textAlign = 'left';
+    for (const l of this.layout.landmarks) {
+      const x = tx(l.x);
+      const y = tz(l.z);
+      g.fillStyle = '#d5c69e';
+      g.fillRect(x - 4, y - 4, 8, 8);
+      g.fillStyle = '#111813';
+      g.fillRect(x + 6, y - 20, g.measureText(l.name).width + 8, 28);
+      g.fillStyle = '#eee8d6';
+      g.fillText(l.name, x + 10, y);
+    }
+    g.fillStyle = '#ffffff';
+    g.strokeStyle = '#161b16';
+    g.lineWidth = 4;
+    g.beginPath();
+    g.arc(tx(player.position.x), tz(player.position.z), 9, 0, Math.PI * 2);
+    g.fill();
+    g.stroke();
+  }
+
+  update({ player, inventory, dayNight, weather, fps, showFps, pointerHint, inCombat, showMap = false }) {
+    this.overview.classList.toggle('hidden', !showMap);
     const pct = (v, max) => Math.max(0, Math.min(100, (v / max) * 100));
     const setBar = (key, v, max) => {
       const p = Math.round(pct(v, max));

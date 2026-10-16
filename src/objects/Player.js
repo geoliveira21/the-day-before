@@ -10,7 +10,7 @@ export class Player {
   constructor(scene) {
     this.position = new THREE.Vector3();
     this.velocity = new THREE.Vector3();
-    this.facing = 0; // model yaw, 0 = +Z
+    this.facing = Math.PI; // model yaw, 0 = +Z
     this.onGround = true;
     this.health = PLAYER.MAX_HEALTH;
     this.stamina = PLAYER.MAX_STAMINA;
@@ -42,8 +42,8 @@ export class Player {
     scene.add(this.root);
 
     // Head gear: a simple beanie / gas-mask strap.
-    const hat = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.12, 0.32), new THREE.MeshStandardMaterial({ color: 0x2b2b2b }));
-    hat.position.y = 0.3;
+    const hat = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x343832, roughness: 1 }));
+    hat.position.y = 0.18;
     hat.castShadow = true;
     this.rig.head.add(hat);
 

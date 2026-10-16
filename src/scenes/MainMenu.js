@@ -12,7 +12,7 @@ export class MainMenu {
   }
 
   show() {
-    this.menuUI.setPlayLabel(this.game.started ? '▶ Continue' : '▶ Start Surviving');
+    this.menuUI.setPlayLabel(this.game.started ? 'Continue expedition' : 'Enter the quarantine zone');
     this.game.setState(GAME_STATES.MENU);
   }
 
